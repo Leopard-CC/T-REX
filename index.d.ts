@@ -1,4 +1,5 @@
 export namespace contracts {
+  export const ClaimIssuer: any;
   export const ClaimTopicsRegistry: any;
   export const DefaultCompliance: any;
   export const IdentityRegistry: any;
@@ -7,6 +8,7 @@ export namespace contracts {
 }
 
 export namespace interfaces {
+  export const IClaimIssuer: any;
   export const IClaimTopicsRegistry: any;
   export const ICompliance: any;
   export const IIdentityRegistry: any;

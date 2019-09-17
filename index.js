@@ -13,6 +13,7 @@ const TrustedIssuersRegistry = require('./build/contracts/TrustedIssuersRegistry
 
 module.exports = {
   contracts: {
+    ClaimIssuer,
     ClaimTopicsRegistry,
     DefaultCompliance,
     IdentityRegistry,
@@ -20,6 +21,7 @@ module.exports = {
     TrustedIssuersRegistry,
   },
   interfaces: {
+    IClaimIssuer,
     IClaimTopicsRegistry,
     ICompliance,
     IIdentityRegistry,
