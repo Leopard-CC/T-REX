@@ -1,5 +1,7 @@
-pragma solidity ^0.5.10;
+pragma solidity ^0.4.24;
 
-interface ICompliance {
-    function canTransfer(address _from, address _to, uint256 value) external view returns (bool);
+//interface
+contract Compliance {
+
+    function canTransfer(address _from, address _to, uint256 value) public view returns(bool);
 }

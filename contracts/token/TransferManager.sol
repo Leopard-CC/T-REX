@@ -1,96 +1,27 @@
-pragma solidity ^0.5.10;
+pragma solidity ^0.4.24;
 
-import "@onchain-id/solidity/contracts/Identity.sol";
-import "../registry/IClaimTopicsRegistry.sol";
-import "../registry/IIdentityRegistry.sol";
+import "../registry/IdentityRegistry.sol";
 import "../compliance/ICompliance.sol";
-// import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
-import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
-import "../roles/AgentRole.sol";
+import "../../zeppelin-solidity/contracts/ownership/Ownable.sol";
+import "../../zeppelin-solidity/contracts/token/ERC20/StandardToken.sol";
 
-import "openzeppelin-solidity/contracts/access/Roles.sol";
-
-contract Pausable is AgentRole, ERC20 {
-    /**
-     * @dev Emitted when the pause is triggered by a pauser (`account`).
-     */
-    event Paused(address account);
-
-    /**
-     * @dev Emitted when the pause is lifted by a pauser (`account`).
-     */
-    event Unpaused(address account);
-
-    bool private _paused;
-
-    /**
-     * @dev Initializes the contract in unpaused state. Assigns the Pauser role
-     * to the deployer.
-     */
-    constructor () internal {
-        _paused = false;
-    }
-
-    /**
-     * @dev Returns true if the contract is paused, and false otherwise.
-     */
-    function paused() public view returns (bool) {
-        return _paused;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is not paused.
-     */
-    modifier whenNotPaused() {
-        require(!_paused, "Pausable: paused");
-        _;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is paused.
-     */
-    modifier whenPaused() {
-        require(_paused, "Pausable: not paused");
-        _;
-    }
-
-    /**
-     * @dev Called by a pauser to pause, triggers stopped state.
-     */
-    function pause() public onlyAgent whenNotPaused {
-        _paused = true;
-        emit Paused(msg.sender);
-    }
-
-    /**
-     * @dev Called by a pauser to unpause, returns to normal state.
-     */
-    function unpause() public onlyAgent whenPaused {
-        _paused = false;
-        emit Unpaused(msg.sender);
-    }
-}
-
-
-contract TransferManager is Pausable {
+contract TransferManager is Ownable, StandardToken {
 
     mapping(address => uint256) private holderIndices;
     mapping(address => address) private cancellations;
     mapping (address => bool) frozen;
-    mapping (address => Identity)  _identity;
 
     mapping(uint16 => uint256) countryShareHolders;
 
     address[] private shareholders;
-    bytes32[] public claimsNotInNewAddress;
 
-    IIdentityRegistry public identityRegistry;
+    IdentityRegistry public identityRegistry;
 
-    ICompliance public compliance;
+    Compliance public compliance;
 
-    event IdentityRegistryAdded(address indexed _identityRegistry);
+    event identityRegistryAdded(address indexed _identityRegistry);
 
-    event ComplianceAdded(address indexed _compliance);
+    event complianceAdded(address indexed _compliance);
 
     event VerifiedAddressSuperseded(
         address indexed original,
@@ -104,26 +35,12 @@ contract TransferManager is Pausable {
         address indexed owner
     );
 
-    event recoverySuccess(
-        address wallet_lostAddress,
-        address wallet_newAddress,
-        address onchainID
-    );
-
-    event recoveryFails(
-        address wallet_lostAddress,
-        address wallet_newAddress,
-        address onchainID
-    );
-
     constructor (
         address _identityRegistry,
         address _compliance
     ) public {
-        identityRegistry = IIdentityRegistry(_identityRegistry);
-        emit IdentityRegistryAdded(_identityRegistry);
-        compliance = ICompliance(_compliance);
-        emit ComplianceAdded(_compliance);
+        identityRegistry = IdentityRegistry(_identityRegistry);
+        compliance = Compliance(_compliance);
     }
 
     /**
@@ -229,8 +146,7 @@ contract TransferManager is Pausable {
     function pruneShareholders(address addr, uint256 value)
         internal
     {
-        uint256 balance = balanceOf(addr) - value;
-        // uint256 balance = balanceOf(addr)
+        uint256 balance = balances[addr] - value;
         if (balance > 0) {
             return;
         }
@@ -281,11 +197,8 @@ contract TransferManager is Pausable {
         shareholders[holderIndex] = replacement;
         holderIndices[replacement] = holderIndices[original];
         holderIndices[original] = 0;
-        uint256 originalBalance = balanceOf(original);
-        _burn(original, originalBalance);
-        _mint(replacement, originalBalance);
-        // _balances[replacement] = _balances[original];
-        // _balances[original] = 0;
+        balances[replacement] = balances[original];
+        balances[original] = 0;
         emit VerifiedAddressSuperseded(original, replacement, msg.sender);
     }
 
@@ -342,8 +255,8 @@ contract TransferManager is Pausable {
      *  @param freeze Frozen status of the address
      */
     function setAddressFrozen(address addr, bool freeze)
-    external
-    onlyAgent {
+    onlyOwner
+    external {
         frozen[addr] = freeze;
 
         emit AddressFrozen(addr, freeze, msg.sender);
@@ -351,64 +264,13 @@ contract TransferManager is Pausable {
 
     //Identity registry setter.
     function setIdentityRegistry(address _identityRegistry) public onlyOwner {
-        identityRegistry = IIdentityRegistry(_identityRegistry);
-        emit IdentityRegistryAdded(_identityRegistry);
+        identityRegistry = IdentityRegistry(_identityRegistry);
+        emit identityRegistryAdded(_identityRegistry);
     }
 
     function setCompliance(address _compliance) public onlyOwner {
-        compliance = ICompliance(_compliance);
-        emit ComplianceAdded(_compliance);
+        compliance = Compliance(_compliance);
+        emit complianceAdded(_compliance);
     }
 
-    uint256[]  claimTopics;
-    bytes32[]  lostAddressClaimIds;
-    bytes32[]  newAddressClaimIds;
-    uint256 foundClaimTopic;
-    uint256 scheme;
-    address issuer;
-    bytes  sig;
-    bytes  data;
-
-    function recoveryAddress(address wallet_lostAddress, address wallet_newAddress, address onchainID) public onlyAgent {
-        require(identityRegistry.contains(wallet_lostAddress), "wallet should be in the registry");
-
-        Identity _onchainID = Identity(onchainID);
-
-        // Check if the token issuer/Tokeny has the management key to the onchainID
-        bytes32 _key = keccak256(abi.encode(msg.sender));
-
-        if(_onchainID.keyHasPurpose(_key, 1)) {
-            require(_onchainID.keyHasPurpose(_key, 1), "Signer should have management key");
-
-            // Burn tokens on the lost wallet
-            uint investorTokens = balanceOf(wallet_lostAddress);
-            _burn(wallet_lostAddress, investorTokens);
-
-            // Remove lost wallet management key from the onchainID
-            bytes32 lostWalletkey = keccak256(abi.encode(wallet_lostAddress));
-            if (_onchainID.keyHasPurpose(lostWalletkey, 1)) {
-                uint256[] memory purposes = _onchainID.getKeyPurposes(lostWalletkey);
-                for(uint _purpose = 0; _purpose <= purposes.length; _purpose++){
-                    if(_purpose != 0)
-                        _onchainID.removeKey(lostWalletkey, _purpose);
-                }
-                // _onchainID.removeKey(lostWalletkey);
-            }
-
-            // Add new wallet to the identity registry and link it with the onchainID
-            identityRegistry.registerIdentity(wallet_newAddress, _onchainID, identityRegistry.investorCountry(wallet_lostAddress));
-
-            // Remove lost wallet from the identity registry
-            identityRegistry.deleteIdentity(wallet_lostAddress);
-
-            // Mint equivalent token amount on the new wallet
-            _mint(wallet_newAddress, investorTokens);
-
-            emit recoverySuccess(wallet_lostAddress, wallet_newAddress, onchainID);
-
-        }
-        else {
-            emit recoveryFails(wallet_lostAddress, wallet_newAddress, onchainID);
-        }
-    }
 }

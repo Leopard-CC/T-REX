@@ -1,14 +1,15 @@
-pragma solidity ^0.5.10;
+pragma solidity ^0.4.24;
 
-import "./MintableAndBurnable.sol";
-import "./IToken.sol";
+import "./Mintable.sol";
 
-contract Token is IToken, MintableAndBurnable {
+contract Token is Mintable {
     string public name = "TREXDINO";
     string public symbol = "TREX";
-    string public version = "1.2";
-    uint8 public decimals = 0;
-    address public onchainID = 0x0000000000000000000000000000000000000000;
+    uint8 public constant decimals = 0;
+
+    // totalSupply_ = someValue;
+
+    event UpdatedTokenInformation(string newName, string newSymbol);
 
     constructor(
         address _identityRegistry,
@@ -21,15 +22,10 @@ contract Token is IToken, MintableAndBurnable {
     /**
     * Owner can update token information here
     */
-    function setTokenInformation(string calldata _name, string calldata _symbol, uint8 _decimals, string calldata _version, address _onchainID) external onlyOwner {
-
+    function setTokenInformation(string _name, string _symbol) external onlyOwner {
         name = _name;
         symbol = _symbol;
-        decimals = _decimals;
-        version = _version;
-	onchainID = _onchainID;
 
-
-        emit UpdatedTokenInformation(name, symbol, decimals, version, onchainID);
+        emit UpdatedTokenInformation(name, symbol);
     }
 }

@@ -1,1 +1,1 @@
-module.exports = "VM Exception while processing transaction: invalid opcode";
+export default "VM Exception while processing transaction: invalid opcode";

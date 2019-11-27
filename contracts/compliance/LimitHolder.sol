@@ -1,11 +1,12 @@
-pragma solidity ^0.5.10;
+pragma solidity ^0.4.24;
 
 import "./ICompliance.sol";
 import "../token/Token.sol";
 
-contract LimitHolder is ICompliance {
+contract LimitHolder is Compliance {
     Token token;
     uint holderLimit;
+
 
     constructor (address _token, uint _holderLimit) public {
         token = Token(_token);
