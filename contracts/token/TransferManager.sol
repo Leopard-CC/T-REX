@@ -4,6 +4,7 @@ import "@onchain-id/solidity/contracts/Identity.sol";
 import "../registry/IClaimTopicsRegistry.sol";
 import "../registry/IIdentityRegistry.sol";
 import "../compliance/ICompliance.sol";
+// import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
 import "../roles/AgentRole.sol";
 
@@ -298,6 +299,7 @@ contract TransferManager is Pausable {
      */
     function pruneShareholders(address addr, uint256 value) internal {
         uint256 balance = balanceOf(addr) - value;
+        // uint256 balance = balanceOf(addr)
         if (balance > 0) {
             return;
         }
