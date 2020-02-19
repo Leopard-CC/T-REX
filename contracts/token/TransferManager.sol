@@ -1,4 +1,4 @@
-pragma solidity ^0.5.10;
+pragma solidity ^0.6.0;
 
 import "@onchain-id/solidity/contracts/Identity.sol";
 import "../registry/IClaimTopicsRegistry.sol";
@@ -139,7 +139,7 @@ contract TransferManager is Pausable {
     *
     * @return `true` if successful and revert if unsuccessful
     */
-    function transfer(address _to, uint256 _value) public whenNotPaused returns (bool) {
+    function transfer(address _to, uint256 _value) public override whenNotPaused returns (bool) {
         require(!frozen[_to] && !frozen[msg.sender]);
         require(_value <= balanceOf(msg.sender).sub(frozenTokens[msg.sender]), "Insufficient Balance");
         if (identityRegistry.isVerified(_to) && compliance.canTransfer(msg.sender, _to, _value)) {
@@ -164,7 +164,6 @@ contract TransferManager is Pausable {
     * @param _toList The addresses of the receivers
     * @param _values The number of tokens to transfer to the corresponding receiver
     *
-    * @return true if successful and revert if unsuccessful
     */
 
     function batchTransfer(address[] calldata _toList, uint256[] calldata _values) external {
@@ -188,7 +187,7 @@ contract TransferManager is Pausable {
     *
     * @return `true` if successful and revert if unsuccessful
     */
-    function transferFrom(address _from, address _to, uint256 _value) public whenNotPaused returns (bool) {
+    function transferFrom(address _from, address _to, uint256 _value) public override whenNotPaused returns (bool) {
         require(!frozen[_to] && !frozen[_from]);
         require(_value <= balanceOf(_from).sub(frozenTokens[_from]), "Insufficient Balance");
         if (identityRegistry.isVerified(_to) && compliance.canTransfer(_from, _to, _value)) {
@@ -242,7 +241,6 @@ contract TransferManager is Pausable {
    * @param _toList The addresses of the receivers
    * @param _values The number of tokens to transfer to the corresponding receiver
    *
-   * @return true if successful and revert if unsuccessful
    */
 
     function batchForcedTransfer(address[] calldata _fromList, address[] calldata _toList, uint256[] calldata _values) external {
@@ -260,7 +258,6 @@ contract TransferManager is Pausable {
      * @param _to Address to mint the tokens to.
      * @param _amount Amount of tokens to mint.
      *
-     * @return 'True' if minting succesful, 'False' if fails.
      */
     function mint(address _to, uint256 _amount) public onlyAgent {
         require(identityRegistry.isVerified(_to), "Identity is not verified.");
@@ -297,7 +294,7 @@ contract TransferManager is Pausable {
      *  you can retrieve the complete list of token holders, one at a time.
      *  It MUST throw if `index >= holderCount()`.
      *  @param index The zero-based index of the holder.
-     *  @return the address of the token holder with the given index.
+     *  @return `address` the address of the token holder with the given index.
      */
     function holderAt(uint256 index) public onlyOwner view returns (address){
         require(index < shareholders.length);
@@ -312,7 +309,8 @@ contract TransferManager is Pausable {
      */
     function updateShareholders(address addr) internal {
         if (holderIndices[addr] == 0) {
-            holderIndices[addr] = shareholders.push(addr);
+            shareholders.push(addr);
+            holderIndices[addr] = shareholders.length;
             uint16 country = identityRegistry.investorCountry(addr);
             countryShareHolders[country]++;
         }
@@ -323,7 +321,7 @@ contract TransferManager is Pausable {
      *  transfer or transferFrom will reduce their balance to 0, then
      *  we need to remove them from the shareholders array.
      *  @param addr The address to prune if their balance will be reduced to 0.
-     @  @dev see https://ethereum.stackexchange.com/a/39311
+     *  @dev see https://ethereum.stackexchange.com/a/39311
      */
     function pruneShareholders(address addr, uint256 value) internal {
         uint256 balance = balanceOf(addr) - value;
@@ -338,7 +336,7 @@ contract TransferManager is Pausable {
         // also copy over the index
         holderIndices[lastHolder] = holderIndices[addr];
         // trim the shareholders array (which drops the last entry)
-        shareholders.length--;
+        shareholders.pop();
         // and zero out the index for addr
         holderIndices[addr] = 0;
         //Decrease the country count
