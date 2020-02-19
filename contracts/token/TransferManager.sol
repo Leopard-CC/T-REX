@@ -1,4 +1,4 @@
-pragma solidity ^0.6.0;
+pragma solidity ^0.5.10;
 
 import "@onchain-id/solidity/contracts/Identity.sol";
 import "../registry/IClaimTopicsRegistry.sol";
@@ -139,7 +139,7 @@ contract TransferManager is Pausable {
     *
     * @return `true` if successful and revert if unsuccessful
     */
-    function transfer(address _to, uint256 _value) public override whenNotPaused returns (bool) {
+    function transfer(address _to, uint256 _value) public whenNotPaused returns (bool) {
         require(!frozen[_to] && !frozen[msg.sender]);
         require(_value <= balanceOf(msg.sender).sub(frozenTokens[msg.sender]), "Insufficient Balance");
         if (identityRegistry.isVerified(_to) && compliance.canTransfer(msg.sender, _to, _value)) {
@@ -188,7 +188,7 @@ contract TransferManager is Pausable {
     *
     * @return `true` if successful and revert if unsuccessful
     */
-    function transferFrom(address _from, address _to, uint256 _value) public override whenNotPaused returns (bool) {
+    function transferFrom(address _from, address _to, uint256 _value) public whenNotPaused returns (bool) {
         require(!frozen[_to] && !frozen[_from]);
         require(_value <= balanceOf(_from).sub(frozenTokens[_from]), "Insufficient Balance");
         if (identityRegistry.isVerified(_to) && compliance.canTransfer(_from, _to, _value)) {
@@ -312,8 +312,7 @@ contract TransferManager is Pausable {
      */
     function updateShareholders(address addr) internal {
         if (holderIndices[addr] == 0) {
-            shareholders.push(addr);
-            holderIndices[addr] = shareholders.length;
+            holderIndices[addr] = shareholders.push(addr);
             uint16 country = identityRegistry.investorCountry(addr);
             countryShareHolders[country]++;
         }
@@ -339,7 +338,7 @@ contract TransferManager is Pausable {
         // also copy over the index
         holderIndices[lastHolder] = holderIndices[addr];
         // trim the shareholders array (which drops the last entry)
-        shareholders.pop();
+        shareholders.length--;
         // and zero out the index for addr
         holderIndices[addr] = 0;
         //Decrease the country count

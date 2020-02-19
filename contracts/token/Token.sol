@@ -1,4 +1,4 @@
-pragma solidity ^0.6.0;
+pragma solidity ^0.5.10;
 
 import "./TransferManager.sol";
 import "./IToken.sol";
@@ -25,13 +25,13 @@ contract Token is IToken, TransferManager {
         version = _version;
         onchainID = _onchainID;
 
-        emit NewTrexTokenCreated(name, symbol, decimals, version, onchainID);
+        emit UpdatedTokenInformation(name, symbol, decimals, version, onchainID);
     }
 
     /**
     * Owner can update token information here
     */
-    function setTokenInformation(string calldata _name, string calldata _symbol, uint8 _decimals, string calldata _version, address _onchainID) external override onlyOwner {
+    function setTokenInformation(string calldata _name, string calldata _symbol, uint8 _decimals, string calldata _version, address _onchainID) external onlyOwner {
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
